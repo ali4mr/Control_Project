@@ -67,14 +67,22 @@ class TeleopBridge(Node):
         # TODO: Milestone 3.1 — Teleoperation Command Mapping
         # This connects user inputs (keyboard/joystick) to the car's physical actuators.
         # Map the incoming Twist linear/angular commands to throttle and steering.
-        pass
+        self.current_throttle = np.clip(msg.linear.x / self.max_angular_vel, -1.0, 1.0)
+        self.current_steer = np.clip(msg.angular.z / self.max_angular_vel, -1.0, 1.0) * self.max_steer_rad
+        self.last_cmd_time = self.get_clock().now()
 
     def publish_commands(self):
         """Periodically publishes throttle and steering commands at 10 Hz."""
         # TODO: Milestone 3.2 — Safety Watchdog & Command Publishing
         # This prevents the car from running away if the user's connection drops.
         # Publish the commands, or zero them out if the last command is too old.
-        pass
+        elapsed = (self.get_clock().now() - self.last_cmd_time).nanoseconds / 1e9
+        if elapsed > self.auto_zero_timeout:
+            self.current_throttle = 0.0
+            self.current_steer = 0.0
+        self.throttle_pub.publish(Float32(data=float(self.current_throttle)))
+        self.steer_pub.publish(Float32(data=float(self.current_steer)))
+    
 
 
 def main(args=None):
