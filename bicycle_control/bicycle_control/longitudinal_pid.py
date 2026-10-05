@@ -33,7 +33,15 @@ class PIDLongitudinalController:
         # This is the speed regulator. Because the car has drag, simply setting
         # a target speed isn't enough — it needs closed-loop control.
         # Implement a PID controller on the velocity error with anti-windup on the integrator.
-        pass
+        error = target_vel - current_vel
+        self.integral += error * self.dt
+        self.integral = float(np.clip(self.integral, -self.integral_limit, self.integral_limit))
+        derivative = (error - self.prev_error) / self.dt
+        self.prev_error = error
+        u = self.kp * error + self.ki * self.integral + self.kd * derivative
+        return float(np.clip(u, -self.max_brake, self.max_throttle))
+    
+
 
     def reset(self):
         """Resets integrator and previous error state."""

@@ -17,8 +17,8 @@ from std_msgs.msg import Float32
 # ==============================================================================
 # Phase 2 (Milestone 4): Uncomment these imports when upgrading to cruise control
 # ==============================================================================
-# from nav_msgs.msg import Odometry
-# from bicycle_control.longitudinal_pid import PIDLongitudinalController
+from nav_msgs.msg import Odometry
+from bicycle_control.longitudinal_pid import PIDLongitudinalController
 
 
 class TeleopBridge(Node):
@@ -54,13 +54,17 @@ class TeleopBridge(Node):
         # TODO: Phase 2 (Milestone 4.2) — Closed-Loop Cruise Control Setup
         # This allows the car to automatically hold a steady speed instead of requiring manual throttle.
         # Initialize the PID speed controller and subscribe to odometry data.
+        self.current_vel = 0.0
+        self.pid = PIDLongitudinalController(dt=0.1)
+        self.state_sub = self.create_subscription(Odometry, '/state', self.odom_callback, 10)
 
         # Publish loop at 10 Hz
         self.timer = self.create_timer(0.1, self.publish_commands)
 
-    # def odom_callback(self, msg: Odometry):
+    def odom_callback(self, msg: Odometry):
     #     """Milestone 4.2: Extracts vehicle forward speed from /state odometry."""
-    #     pass
+        self.current_vel = msg.twist.twist.linear.x
+        pass
 
     def cmd_callback(self, msg: Twist):
         """Translates Twist linear.x to throttle [-1, 1] and angular.z into steering (rad)."""
@@ -70,6 +74,7 @@ class TeleopBridge(Node):
         self.current_throttle = np.clip(msg.linear.x / self.max_angular_vel, -1.0, 1.0)
         self.current_steer = np.clip(msg.angular.z / self.max_angular_vel, -1.0, 1.0) * self.max_steer_rad
         self.last_cmd_time = self.get_clock().now()
+        self.target_vel = msg.linear.x
 
     def publish_commands(self):
         """Periodically publishes throttle and steering commands at 10 Hz."""
@@ -78,8 +83,11 @@ class TeleopBridge(Node):
         # Publish the commands, or zero them out if the last command is too old.
         elapsed = (self.get_clock().now() - self.last_cmd_time).nanoseconds / 1e9
         if elapsed > self.auto_zero_timeout:
+            self.target_vel = 0.0
             self.current_throttle = 0.0
             self.current_steer = 0.0
+        if self.use_cruise_control:
+            self.current_throttle = self.pid.compute(self.target_vel, self.current_vel)
         self.throttle_pub.publish(Float32(data=float(self.current_throttle)))
         self.steer_pub.publish(Float32(data=float(self.current_steer)))
     
