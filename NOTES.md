@@ -48,3 +48,21 @@ Observations (target 5 m/s):
 - Speed rises and holds 5 m/s. Steady throttle ≈ 0.1 > 0: the I term supplies the gas needed against drag. P alone would settle below the target.
 - On release, the target becomes 0 and the PID brakes to a stop.
 - After stopping, throttle sits at −0.4 = Ki × (−2): the integral is held at its anti-windup limit instead of growing without bound.
+
+## Milestone 5.1 — Velocity profiler
+
+Curvature κ = 1/R, computed in the controller as Δheading / Δdistance between neighbouring waypoints.
+Lateral acceleration in a bend is a_lat = v²·κ. Limiting it to a_max = 5 m/s² gives:
+```
+v_target = min( √(a_max / |κ|), v_max )      (v_max on straights, where κ ≈ 0)
+```
+Example: R = 5 m → κ = 0.2 → v = √(5 / 0.2) = 5 m/s.
+
+## Milestone 5.2 — Lateral PID
+
+CTE > 0 = car left of path; heading error > 0 = car pointing left of the path direction.
+```
+δ = −(Kp·CTE + Ki·∫CTE dt + Kd·dCTE/dt) − K_yaw·e_ψ       Kp = 0.8, Ki = 0.02, Kd = 0.15, K_yaw = 0.5
+```
+The minus signs steer against the error: left of path → steer right (δ < 0), and vice versa.
+Integral clamped to ±1 (anti-windup); output clipped to ±35°.
