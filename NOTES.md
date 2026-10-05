@@ -66,3 +66,13 @@ CTE > 0 = car left of path; heading error > 0 = car pointing left of the path di
 ```
 The minus signs steer against the error: left of path → steer right (δ < 0), and vice versa.
 Integral clamped to ±1 (anti-windup); output clipped to ±35°.
+
+## Milestone 5.3 — Pure Pursuit
+
+1. Adaptive look-ahead: `Ld = clip(0.25·v + 0.8, 0.8, 2.5)` m. Faster → look further → smoother; too short → zig-zag, too long → corner cutting.
+2. Target: from the nearest path point, walk forward to the first point at least Ld from the car.
+3. Rotate the target into the car frame:
+   `x_c = cos ψ·dx + sin ψ·dy`, `y_c = −sin ψ·dx + cos ψ·dy`, `α = atan2(y_c, x_c)`
+4. Arc law: the circle through the rear axle and the target has curvature 2·sin α / Ld, so
+   `δ = atan(2·L·sin α / Ld)`
+Observation: smooth, no jitter. It starts turning before the corner because it uses a preview of the path.
