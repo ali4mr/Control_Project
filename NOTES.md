@@ -76,3 +76,27 @@ Integral clamped to ±1 (anti-windup); output clipped to ±35°.
 4. Arc law: the circle through the rear axle and the target has curvature 2·sin α / Ld, so
    `δ = atan(2·L·sin α / Ld)`
 Observation: smooth, no jitter. It starts turning before the corner because it uses a preview of the path.
+## Milestone 6 — Free exploration: 4-wheel Ackermann kinematics
+
+The bicycle model lumps both front wheels into one virtual wheel at angle δ. On a real car, all wheels
+turn about one centre, so the inner wheel follows a tighter circle and must steer more.
+With R = L / tan δ, L = 1.25 m, W = 1.18 m:
+```
+tan δ_inner = L / (R − W/2)      tan δ_outer = L / (R + W/2)
+→ δ_left  = atan(L·tanδ / (L − (W/2)·tanδ)),  δ_right = atan(L·tanδ / (L + (W/2)·tanδ))   (sign-safe form)
+```
+| δ (bicycle) | inner | outer | difference |
+|---|---|---|---|
+| 5° | 5.2° | 4.8° | 0.4° |
+| 20° | 23.7° | 17.3° | 6.5° |
+| 35° | 46.3° | 27.8° | 18.5° |
+
+Finding: the original sim published the same δ to both front steering joints. I changed `publish_joint_states`
+to publish the Ackermann left/right angles, so the 3D model is geometrically correct (see docs/ackermann.png).
+The physics still uses the bicycle model, which is valid precisely because Ackermann geometry gives all wheels a shared turn centre.
+In ros2_control, `ackermann_steering_controller` (steering_controllers_library) does this conversion from wheelbase and track widths.
+
+2D vs 3D: our 4-equation sim is instant and deterministic but has no tyre slip, load transfer or collisions; Gazebo/MVSim add physics
+and sensors at a much higher compute and tuning cost.
+MPC vs MPPI: MPC optimises one plan with a gradient-based solver; MPPI samples thousands of random control sequences and averages
+the best. That handles obstacles and non-smooth costs easily but needs far more compute (GPU or many cores).

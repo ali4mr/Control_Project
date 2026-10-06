@@ -206,7 +206,12 @@ class Car(Node):
         ]
         delta = float(self.u[1])
         rot = float(self.wheel_rotation)
-        msg.position = [delta, delta, rot, rot, rot, rot]
+        L = self.wheelbase_length
+        half_track = 1.18 / 2.0
+        t = math.tan(delta)
+        delta_left = math.atan(L * t / (L - half_track * t))
+        delta_right = math.atan(L * t / (L + half_track * t))
+        msg.position = [delta_left, delta_right, rot, rot, rot, rot]
         self.joint_pub.publish(msg)
 
     def publish_state(self, timestamp, yaw_rate):
