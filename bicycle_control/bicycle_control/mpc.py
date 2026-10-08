@@ -38,6 +38,8 @@ class KinematicBicycleMPC:
         self.w_accel = 0.1
 
         self.last_u = np.zeros(2 * self.N)  # warm-start [delta_0, a_0, delta_1, a_1, ...]
+        self.last_accel = 0.0
+        self.delay_steps = 1
 
     def solve(self, x0, ref_trajectory, current_steer=0.0):
         """Solves MPC optimization problem over horizon N.
@@ -57,6 +59,13 @@ class KinematicBicycleMPC:
             bounds.append((-self.k_a, self.k_a))
 
         x_start, y_start, yaw_start, v_start = [float(s) for s in x0]
+        for _ in range(self.delay_steps):
+            x_start += v_start * math.cos(yaw_start) * self.dt
+            y_start += v_start * math.sin(yaw_start) * self.dt
+            yaw_start += (v_start / self.L) * math.tan(current_steer) * self.dt
+            v_start += (self.last_accel - self.c_drag * v_start ** 2 - self.c_roll * v_start) * self.dt
+            v_start = max(v_start, 0.0)
+        ref_trajectory = list(ref_trajectory[self.delay_steps:]) + [ref_trajectory[-1]] * self.delay_steps
 
         def objective(u):
             x, y, yaw, v = x_start, y_start, yaw_start, v_start
@@ -99,5 +108,6 @@ class KinematicBicycleMPC:
 
         delta_cmd = float(np.clip(result.x[0], -self.max_steer_rad, self.max_steer_rad))
         accel_cmd = float(result.x[1])
+        self.last_accel = accel_cmd
         throttle_cmd = float(np.clip(accel_cmd / self.k_a, -1.0, 1.0))
         return delta_cmd, throttle_cmd
