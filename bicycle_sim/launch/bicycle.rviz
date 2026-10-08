@@ -11,7 +11,7 @@ Panels:
         - /LapTelemetry1
         - /Path1
       Splitter Ratio: 0.5
-    Tree Height: 97
+    Tree Height: 201
   - Class: rviz_common/Selection
     Name: Selection
   - Class: rviz_common/Tool Properties
@@ -139,8 +139,8 @@ Visualization Manager:
       Name: LapTelemetry
       Namespaces:
         cte_whisker: true
+        hud: true
         start_gate: true
-        telemetry_hud: true
       Topic:
         Depth: 5
         Durability Policy: Volatile
@@ -221,42 +221,52 @@ Visualization Manager:
   Value: true
   Views:
     Current:
-      Class: rviz_default_plugins/Orbit
-      Distance: 19.368785858154297
+      Angle: 3.1150062084198
+      Class: rviz_default_plugins/TopDownOrtho
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
-      Focal Point:
-        X: 4
-        Y: -2
-        Z: 0
-      Focal Shape Fixed Size: true
-      Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 1.100000023841858
+      Scale: 52.539527893066406
       Target Frame: <Fixed Frame>
-      Value: Orbit (rviz)
-      Yaw: 1.5700000524520874
-    Saved: ~
+      Value: TopDownOrtho (rviz_default_plugins)
+      X: 4
+      Y: -2
+    Saved:
+      - Angle: 0
+        Class: rviz_default_plugins/TopDownOrtho
+        Enable Stereo Rendering:
+          Stereo Eye Separation: 0.05999999865889549
+          Stereo Focal Distance: 1
+          Swap Stereo Eyes: false
+          Value: false
+        Invert Z Axis: false
+        Name: TopDownOrtho
+        Near Clip Distance: 0.009999999776482582
+        Scale: 10
+        Target Frame: <Fixed Frame>
+        Value: TopDownOrtho (rviz_default_plugins)
+        X: 4
+        Y: -2
 Window Geometry:
   Displays:
-    collapsed: true
+    collapsed: false
   Height: 800
-  Hide Left Dock: true
+  Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd000000010000000000000447000002c6fc0200000005fb000000100044006900730070006c006100790073000000003d000000ec000000c900fffffffb0000001200530065006c0065006300740069006f006e000000012f000000720000005c00fffffffb0000001e0054006f006f006c002000500072006f007000650072007400690065007300000001a7000000730000005c00fffffffb0000000a005600690065007700730000000220000000a4000000a400fffffffb0000000800540069006d006500000002ca000000390000003900ffffff00000578000002c600000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd000000010000000000000447000002edfc0200000005fb000000100044006900730070006c006100790073010000001600000154000000c900fffffffb0000001200530065006c0065006300740069006f006e00000000f7000001030000005c00fffffffb0000001e0054006f006f006c002000500072006f00700065007200740069006500730000000016000000b60000005c00fffffffb0000000a00560069006500770073000000001600000250000000a400fffffffb0000000800540069006d00650100000170000001930000003900ffffff0000012b000002ed00000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730000000000ffffffff0000000000000000
   Selection:
-    collapsed: true
+    collapsed: false
   Time:
-    collapsed: true
+    collapsed: false
   Tool Properties:
-    collapsed: true
+    collapsed: false
   Views:
-    collapsed: true
+    collapsed: false
   Width: 1400
-  X: 0
-  Y: 27
+  X: 125
+  Y: 158

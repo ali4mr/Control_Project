@@ -81,7 +81,7 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'controller',
             default_value='none',
-            description='Controller to launch: none, pure_pursuit, lateral_pid, mpc, teleop'
+            description='Controller to launch: none, pure_pursuit, lateral_pid, mpc, mppi, teleop'
         ),
         DeclareLaunchArgument(
             'analyzer',
@@ -199,6 +199,23 @@ def generate_launch_description():
             condition=IfCondition(
                 PythonExpression(
                     ["'", controller, "'.lower() == 'mpc'"]
+                )
+            )
+        ),
+
+        # Mode E: MPPI (sampling-based MPC)
+        Node(
+            package='bicycle_control',
+            executable='controller',
+            name='controller',
+            output='screen',
+            parameters=[{
+                'control_mode': 'mppi',
+                'target_speed': 4.0
+            }],
+            condition=IfCondition(
+                PythonExpression(
+                    ["'", controller, "'.lower() == 'mppi'"]
                 )
             )
         ),

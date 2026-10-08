@@ -5,14 +5,16 @@ Decoupled observer monitoring /path and /state to compute cross-track error, hea
 lap times, and dynamic metrics.
 """
 
-import json  # noqa: F401
+import json
 import math
-import numpy as np  # noqa: F401
+import os
+import time
+import numpy as np
 import rclpy
 from rclpy.node import Node
 from nav_msgs.msg import Path, Odometry
-from std_msgs.msg import String, Float32  # noqa: F401
-from geometry_msgs.msg import Point  # noqa: F401
+from std_msgs.msg import String, Float32
+from geometry_msgs.msg import Point
 from visualization_msgs.msg import Marker, MarkerArray
 
 
@@ -234,49 +236,59 @@ class LapAnalyzer(Node):
         if self.best_lap_time is None or lap_duration < self.best_lap_time:
             self.best_lap_time = lap_duration
 
-        # ======================================================================
-        # TODO: Lap Performance Analysis & Metrics Aggregation
-        #
-        # 1. Summary Statistics:
-        #    Compute key performance indicators from self.lap_ctes and self.lap_speeds:
-        #      - mean_cte: Mean absolute Cross-Track Error (m)
-        #      - max_cte: Maximum Cross-Track Error (m)
-        #      - rms_cte: Root-Mean-Square Cross-Track Error: sqrt(mean(cte^2)) (m)
-        #      - mean_speed: Average speed across the lap (m/s)
-        #      - max_speed: Peak instantaneous speed (m/s)
-        #
-        # 2. Console Summary:
-        #    Log a clean, structured terminal banner reporting lap time, best lap,
-        #    CTE metrics (Mean, RMS, Max), speed metrics, and total distance.
-        #
-        # 3. Buffer Reset:
-        #    Clear per-lap history buffers (self.lap_ctes, self.lap_heading_errors,
-        #    self.lap_speeds) so the next lap starts fresh.
-        # ======================================================================
-        pass
+        ctes = np.array(self.lap_ctes) if self.lap_ctes else np.zeros(1)
+        speeds = np.array(self.lap_speeds) if self.lap_speeds else np.zeros(1)
+        mean_cte = float(np.mean(ctes))
+        max_cte = float(np.max(ctes))
+        rms_cte = float(np.sqrt(np.mean(ctes ** 2)))
+        mean_speed = float(np.mean(speeds))
+        max_speed = float(np.max(speeds))
+
+        self.get_logger().info(
+            f"\n========== LAP {self.lap_count} ==========\n"
+            f"Lap time   : {lap_duration:.2f} s   (best {self.best_lap_time:.2f} s)\n"
+            f"CTE        : mean {mean_cte:.3f} | RMS {rms_cte:.3f} | max {max_cte:.3f} m\n"
+            f"Speed      : mean {mean_speed:.2f} | max {max_speed:.2f} m/s\n"
+            f"Distance   : {self.total_distance:.1f} m\n"
+            f"=================================="
+        )
+
+        log_path = os.path.expanduser('~/lap_results.csv')
+        new_file = not os.path.exists(log_path)
+        with open(log_path, 'a') as f:
+            if new_file:
+                f.write('time,lap,lap_time_s,mean_cte_m,rms_cte_m,max_cte_m,mean_speed_ms,max_speed_ms\n')
+            f.write(
+                f"{time.strftime('%Y-%m-%d %H:%M:%S')},{self.lap_count},{lap_duration:.2f},"
+                f"{mean_cte:.4f},{rms_cte:.4f},{max_cte:.4f},{mean_speed:.2f},{max_speed:.2f}\n"
+            )
+
+        self.lap_ctes = []
+        self.lap_heading_errors = []
+        self.lap_speeds = []
 
     def publish_telemetry(self):
         """Periodically publishes numerical telemetry and RViz visual markers at 10 Hz."""
-        # ======================================================================
-        # TODO: Telemetry Publishing for Graphing (PlotJuggler / rqt_plot) & Logging
-        #
-        # 1. Real-Time Numerical Signals (for rqt_plot / PlotJuggler):
-        #    Publish individual Float32 messages so students can graph signals live:
-        #      - self.cte_pub -> self.current_cte
-        #      - self.speed_pub -> self.current_speed
-        #      - self.heading_err_pub -> math.degrees(self.current_heading_err)
-        #      - self.lap_time_pub -> self.current_lap_time
-        #
-        # 2. JSON Telemetry Message:
-        #    Assemble a telemetry dictionary (lap, current_lap_time, last_lap_time,
-        #    best_lap_time, speed, current_cte, rms_cte, heading_err_deg) and publish
-        #    it as a serialized JSON String to self.metrics_pub.
-        #
-        # 3. Visual Telemetry (RViz):
-        #    Pass the telemetry dict to self.publish_rviz_markers(telemetry).
-        # ======================================================================
-        # Baseline start-gate visualization hook
-        self.publish_rviz_markers()
+        heading_deg = math.degrees(self.current_heading_err)
+        rms_cte = float(np.sqrt(np.mean(np.square(self.lap_ctes)))) if self.lap_ctes else 0.0
+
+        self.cte_pub.publish(Float32(data=float(self.current_cte)))
+        self.speed_pub.publish(Float32(data=float(self.current_speed)))
+        self.heading_err_pub.publish(Float32(data=float(heading_deg)))
+        self.lap_time_pub.publish(Float32(data=float(self.current_lap_time)))
+
+        telemetry = {
+            'lap': self.lap_count,
+            'current_lap_time': self.current_lap_time,
+            'last_lap_time': self.last_lap_time,
+            'best_lap_time': self.best_lap_time,
+            'speed': self.current_speed,
+            'current_cte': self.current_cte,
+            'rms_cte': rms_cte,
+            'heading_err_deg': heading_deg,
+        }
+        self.metrics_pub.publish(String(data=json.dumps(telemetry)))
+        self.publish_rviz_markers(telemetry)
 
     def publish_rviz_markers(self, telemetry=None):
         """Renders start gate, error whisker, and on-screen HUD text in RViz."""
@@ -308,28 +320,53 @@ class LapAnalyzer(Node):
             gate.color.a = 0.7
             ma.markers.append(gate)
 
-        # ======================================================================
-        # TODO: Custom Real-Time RViz Visualizations & Telemetry HUD
-        #
-        # Develop live visual feedback to analyze controller tracking performance:
-        #
-        # Minimum Requirements:
-        # 1. Cross-Track Error Whisker (Marker.LINE_STRIP):
-        #    - Connect the vehicle rear axle (self.last_xy) to the projected point
-        #      on the path (self.proj_xy).
-        #    - Style with dynamic color (e.g., green when small, red when drifting)
-        #      so tracking deviation is immediately visible.
-        #
-        # 2. 3D Telemetry HUD Scoreboard (Marker.TEXT_VIEW_FACING):
-        #    - Position floating text above the track start or trailing the vehicle.
-        #    - Display live lap number, lap time, speed, CTE, and best lap time.
-        #
-        # Creative / Bonus Ideas (Optional):
-        #  - Controller Lookahead Preview: Render a Marker.SPHERE at target waypoint.
-        #  - Vehicle Breadcrumbs / Trajectory History: Render a Marker.POINTS trail
-        #    color-coded by speed or CTE magnitude.
-        #  - Lateral Acceleration Gauge: Render a vertical bar showing cornering load.
-        # ======================================================================
+        if telemetry is not None and self.last_xy is not None:
+            err = min(abs(self.current_cte), 1.0)
+
+            whisker = Marker()
+            whisker.header.frame_id = 'map'
+            whisker.header.stamp = now
+            whisker.ns = 'cte_whisker'
+            whisker.id = 1
+            whisker.type = Marker.LINE_STRIP
+            whisker.action = Marker.ADD
+            whisker.pose.orientation.w = 1.0
+            whisker.scale.x = 0.08
+            whisker.points = [
+                Point(x=float(self.last_xy[0]), y=float(self.last_xy[1]), z=0.3),
+                Point(x=float(self.proj_xy[0]), y=float(self.proj_xy[1]), z=0.3),
+            ]
+            whisker.color.r = err
+            whisker.color.g = 1.0 - err
+            whisker.color.b = 0.0
+            whisker.color.a = 1.0
+            ma.markers.append(whisker)
+
+            best = telemetry['best_lap_time']
+            best_txt = f"{best:.2f} s" if best is not None else '--'
+            hud = Marker()
+            hud.header.frame_id = 'map'
+            hud.header.stamp = now
+            hud.ns = 'hud'
+            hud.id = 2
+            hud.type = Marker.TEXT_VIEW_FACING
+            hud.action = Marker.ADD
+            hud.pose.position.x = float(self.last_xy[0])
+            hud.pose.position.y = float(self.last_xy[1])
+            hud.pose.position.z = 3.0
+            hud.pose.orientation.w = 1.0
+            hud.scale.z = 0.6
+            hud.color.r = 1.0
+            hud.color.g = 1.0
+            hud.color.b = 1.0
+            hud.color.a = 1.0
+            hud.text = (
+                f"Lap {telemetry['lap'] + 1}   {telemetry['current_lap_time']:.1f} s\n"
+                f"Speed {telemetry['speed']:.2f} m/s\n"
+                f"CTE {telemetry['current_cte']:+.2f} m   RMS {telemetry['rms_cte']:.2f} m\n"
+                f"Best lap {best_txt}"
+            )
+            ma.markers.append(hud)
 
         self.viz_pub.publish(ma)
 

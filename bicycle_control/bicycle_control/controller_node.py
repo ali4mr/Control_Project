@@ -14,6 +14,7 @@ from bicycle_control.velocity_profiler import VelocityProfiler
 from bicycle_control.lateral_pid import LateralPIDController
 from bicycle_control.pure_pursuit import PurePursuitController
 from bicycle_control.mpc import KinematicBicycleMPC
+from bicycle_control.mppi import MPPIController
 
 
 class ControllerNode(Node):
@@ -24,7 +25,7 @@ class ControllerNode(Node):
         self.get_logger().info('Initializing Two-Tier Autonomous Vehicle Controller...')
 
         # Parameters
-        # Available control modes: 'lateral_pid', 'pure_pursuit', 'mpc'
+        # Available control modes: 'lateral_pid', 'pure_pursuit', 'mpc', 'mppi'
         self.declare_parameter('control_mode', 'pure_pursuit')
         self.declare_parameter('target_speed', 4.0)             # m/s base speed
         self.declare_parameter('velocity_mode', 'curvature')    # 'curvature', 'constant'
@@ -43,6 +44,7 @@ class ControllerNode(Node):
             wheelbase=self.wheelbase, kv=0.25, l_min=0.8, l_max=2.5
         )
         self.mpc = KinematicBicycleMPC(wheelbase=self.wheelbase, dt=0.1, horizon=10)
+        self.mppi = MPPIController(wheelbase=self.wheelbase, dt=0.1, horizon=15)
 
         # Publishers (10 Hz rate per assignment specification)
         self.throttle_pub = self.create_publisher(Float32, '/throttle', 10)
@@ -151,6 +153,12 @@ class ControllerNode(Node):
                 )
 
             throttle_cmd = self.pid_longitudinal.compute(target_v, v)
+
+        elif self.control_mode == 'mppi':
+            ref_traj = self.build_mpc_reference(x, y, v, horizon=self.mppi.N)
+            steer_rad, throttle_cmd = self.mppi.solve(
+                [x, y, yaw, v], ref_traj, current_steer=self.current_steer
+            )
 
         elif self.control_mode == 'mpc':
             # Mode C: Kinematic Bicycle MPC Benchmark
