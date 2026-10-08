@@ -6,6 +6,10 @@ Course: Autonomous Vehicles & Drive-by-Wire Systems · Individual project
 | | |
 |---|---|
 | **Student** | Ali Amr |
+   > ## 🎥 Demo video
+> **Watch here:** [Bicycle Gym — demo and analysis (Google Drive)](https://drive.google.com/drive/folders/1POGByv9fFPWTVd4A7otauRGuJe9YEjc5?usp=sharing)
+>
+> Covers the code, live demos of all controllers, the benchmark analysis and the Milestone 6 findings.
 | **Student ID** | 24P0312 |
 | **Programme** | Computer and Artificial Intelligence Engineering (CAIE) |
 | **GitHub** | [ali4mr/Control_Project](https://github.com/ali4mr/Control_Project) |
@@ -383,6 +387,7 @@ speed. MPC has seven weights plus horizon, but they have physical meaning (what 
 | Sensitivity to delay | low | low | high in principle (guarded by compensation) |
 | Best use | simple low-speed tracking | fast, robust tracking | most accurate tracking |
 
+   *The offline test harness used for the delay study and the MPPI sample sweep was built with AI assistance.*
 ---
 
 ## 12. Why MPC tracks better than Pure Pursuit and Lateral PID
