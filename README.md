@@ -113,8 +113,8 @@ with $L = 1.25$ m, $k_a = 4.0$ m/s², $c_{drag} = 0.005$, $c_{roll} = 0.05$.
 
 $$
 \mathbf{x}_{k+1} = \mathbf{x}_k + \dot{\mathbf{x}}_k\,\Delta t,\qquad
-\theta \leftarrow \operatorname{atan2}(\sin\theta,\cos\theta),\qquad
-v \leftarrow \operatorname{clip}(v,\ 0,\ 25)
+\theta \leftarrow \mathrm{atan2}(\sin\theta,\cos\theta),\qquad
+v \leftarrow \mathrm{clip}(v,\ 0,\ 25)
 $$
 
 - **Heading wrapping** keeps $\theta \in [-\pi, \pi]$. Without it, $\theta$ grows without bound on a closed track and any
@@ -138,8 +138,8 @@ Translates the standard `geometry_msgs/Twist` from `teleop_twist_keyboard` into 
 **open-loop mapping**:
 
 $$
-u = \operatorname{clip}\!\left(\frac{v_{cmd}}{v_{max}},\,-1,\,1\right),\qquad
-\delta = \operatorname{clip}\!\left(\frac{\omega_{cmd}}{\omega_{max}},\,-1,\,1\right)\delta_{max}
+u = \mathrm{clip}\left(\frac{v_{cmd}}{v_{max}},\,-1,\,1\right),\qquad
+\delta = \mathrm{clip}\left(\frac{\omega_{cmd}}{\omega_{max}},\,-1,\,1\right)\delta_{max}
 $$
 
 with $v_{max} = 5$ m/s, $\omega_{max} = 1$ rad/s, $\delta_{max} = 35° = 0.611$ rad.
@@ -187,13 +187,13 @@ to `/state`, and lets the PID choose the throttle every 0.1 s.
 heading over the distance between its neighbours:
 
 $$
-\kappa \approx \frac{\Delta\psi}{\Delta s} = \frac{\operatorname{wrap}(\psi_{i+1} - \psi_{i-1})}{\lVert p_{i+1} - p_{i-1}\rVert}
+\kappa \approx \frac{\Delta\psi}{\Delta s} = \frac{\mathrm{wrap}(\psi_{i+1} - \psi_{i-1})}{\lVert p_{i+1} - p_{i-1}\rVert}
 $$
 
 **Speed limit.** Lateral acceleration in a bend is $a_{lat} = v^2\kappa$. Limiting it to $a_{max} = 5$ m/s²:
 
 $$
-v_{target} = \min\!\left(\sqrt{\frac{a_{max}}{|\kappa|}},\ v_{max}\right),\qquad v_{max} = 7.5 \text{ m/s}
+v_{target} = \min\left(\sqrt{\frac{a_{max}}{|\kappa|}},\ v_{max}\right),\qquad v_{max} = 7.5 \text{ m/s}
 $$
 
 with $v_{target} = v_{max}$ when $|\kappa| < 10^{-6}$ (straight). Example: $R = 5$ m → $\kappa = 0.2$ → $v = 5$ m/s.
@@ -225,16 +225,16 @@ to ±35°.
 
 A geometric controller that steers the rear axle onto the circular arc passing through a look-ahead point on the path.
 
-1. **Adaptive look-ahead:** $L_d = \operatorname{clip}(k_v v + L_{min},\ L_{min},\ L_{max})$ with $k_v = 0.25$, $L_{min} = 0.8$ m, $L_{max} = 2.5$ m.
+1. **Adaptive look-ahead:** $L_d = \mathrm{clip}(k_v v + L_{min},\ L_{min},\ L_{max})$ with $k_v = 0.25$, $L_{min} = 0.8$ m, $L_{max} = 2.5$ m.
    Faster driving looks further ahead and turns more smoothly; too short a look-ahead zig-zags, too long cuts corners.
 2. **Target selection:** from the nearest waypoint, walk forward to the first waypoint at least $L_d$ from the car.
 3. **Transform to the vehicle frame:**
-   $x_c = \cos\theta\,\Delta x + \sin\theta\,\Delta y,\quad y_c = -\sin\theta\,\Delta x + \cos\theta\,\Delta y,\quad \alpha = \operatorname{atan2}(y_c, x_c)$
+   $x_c = \cos\theta\,\Delta x + \sin\theta\,\Delta y,\quad y_c = -\sin\theta\,\Delta x + \cos\theta\,\Delta y,\quad \alpha = \mathrm{atan2}(y_c, x_c)$
 4. **Arc law:** the circle through the rear axle and the target has curvature $\kappa = 2\sin\alpha / L_d$. The bicycle model
    gives $\kappa = \tan\delta / L$, so
 
 $$
-\delta = \arctan\!\left(\frac{2L\sin\alpha}{L_d}\right)
+\delta = \arctan\left(\frac{2L\sin\alpha}{L_d}\right)
 $$
 
 ---
@@ -495,7 +495,7 @@ be compared directly.
 
 **Algorithm (every 0.1 s).** Horizon 15 steps (1.5 s), $K = 1000$ samples:
 1. Shift the previous nominal control sequence $\mathbf{U}$ by one step (warm start).
-2. Sample $K$ perturbed sequences $\mathbf{V}_k = \mathbf{U} + \boldsymbol{\epsilon}_k$, with $\epsilon \sim \mathcal{N}(0, \operatorname{diag}(0.12^2, 1.0^2))$, clipped to the actuator limits.
+2. Sample $K$ perturbed sequences $\mathbf{V}_k = \mathbf{U} + \epsilon_k$, with $\epsilon \sim \mathcal{N}(0, \mathrm{diag}(0.12^2, 1.0^2))$, clipped to the actuator limits.
 3. Roll out all $K$ sequences through the bicycle model **in parallel** (vectorised NumPy).
 4. Score each rollout with the MPC tracking cost **plus a hard off-track penalty**: $+1000$ for every step with $|e_{lat}| > 1$ m.
 5. Weight the samples with the path-integral rule $w_k = \exp(-(S_k - S_{min})/\lambda)$, normalise, and set $\mathbf{U} \leftarrow \sum_k w_k \mathbf{V}_k$ ($\lambda = 3$).
