@@ -281,7 +281,7 @@ $$
 |---|---|---|
 | Drag and rolling resistance in the prediction | Makes the prediction match the plant, so planned throttle gives the planned speed | — |
 | $w_\psi$: 10 → 1 | With a large heading weight the optimiser preferred being parallel to the path over being on it | Offline: RMS CTE 0.10 → 0.046 m |
-| **Delay compensation** | Simulator and controller run on independent 10 Hz timers, so a command acts ≈ 0.1 s after the state it was computed from. MPC assumes it acts immediately. Before optimising, the state is predicted one step ahead with the command already sent, and the reference shifted by one step. | Real system, 4 m/s: RMS CTE **0.168 → 0.048 m**, max CTE 1.25 → 0.39 m |
+| **Delay compensation** | Simulator and controller run on independent 10 Hz timers, so a command acts ≈ 0.1 s after the state it was computed from. MPC assumes it acts immediately. Before optimising, the state is predicted one step ahead with the command already sent, and the reference shifted by one step. | Offline, forced 0.1 s delay: RMS CTE 0.200 → 0.046 m. Real system: no measurable change (0.048 → 0.047 m), see Table C |
 
 Average solve time ≈ 12–20 ms, well within the 100 ms control period.
 
@@ -316,7 +316,7 @@ deterministic, so repeated laps agree closely. Raw data is in `docs/results_*.cs
 | Lateral PID | 116.10 | 4.00 | 4.00 | 0.252 | 0.359 | 2.26 | 4 |
 | Pure Pursuit | **111.50** | 4.00 | 4.00 | 0.042 | 0.066 | 0.35 | 4 |
 | MPPI (1000 samples) | 113.70 | 3.90 | 4.05 | 0.030 | 0.054 | 0.39 | 4 |
-| **MPC** | 119.01 | 3.74 | 4.13 | **0.022** | **0.048** | 0.39 | 4 |
+| **MPC** | 121.20 | 3.67 | 4.02 | **0.023** | **0.047** | 0.38 | 4 |
 
 ### Table B — course default launch configurations
 
@@ -324,37 +324,48 @@ deterministic, so repeated laps agree closely. Raw data is in `docs/results_*.cs
 |---|---|---|---|---|---|---|---|
 | Lateral PID | profiler, ≤ 7.5 m/s | 81.39 | 7.52 | 0.470 | 0.727 | 4.40 | 4 |
 | Pure Pursuit | profiler, ≤ 7.5 m/s | **72.29** | 7.67 | 0.063 | 0.086 | 0.38 | 4 |
-| MPC | constant 4 m/s | 119.01 | 4.13 | **0.022** | **0.048** | 0.39 | 4 |
+| MPC | constant 4 m/s | 121.20 | 4.02 | **0.023** | **0.047** | 0.38 | 4 |
 
 ### Table C — effect of delay compensation on MPC (4 m/s)
 
-Raw data: `docs/results_mpc_no_delay_comp.csv` (before) and `docs/results_mpc.csv` (after).
+Tables A and B use the final MPC (with delay compensation). Raw data: `docs/results_mpc.csv` (without) and
+`docs/results_mpc_delay_comp.csv` (with).
 
-| MPC version | Best lap (s) | Mean CTE (m) | RMS CTE (m) | Max CTE (m) |
-|---|---|---|---|---|
-| Without delay compensation | 122.00 | 0.143 | 0.168 | 1.25 |
-| **With delay compensation** | 119.01 | **0.022** | **0.048** | **0.39** |
+| Test | MPC version | Best lap (s) | Mean CTE (m) | RMS CTE (m) | Max CTE (m) |
+|---|---|---|---|---|---|
+| Offline, forced 1-step (0.1 s) delay | without compensation | — | — | 0.200 | — |
+| Offline, forced 1-step (0.1 s) delay | with compensation | — | — | 0.046 | — |
+| Real ROS 2 system | without compensation | 119.01 | 0.022 | 0.048 | 0.39 |
+| Real ROS 2 system | with compensation | 121.20 | 0.023 | 0.047 | 0.38 |
+
+**Reading.** When a full 0.1 s delay is present, compensation is essential (offline: 0.200 → 0.046 m). On the real system
+the two versions are the same within lap-to-lap variation, so the effective delay there is much smaller than one full step.
+Compensation is kept as a robustness feature: it costs nothing when the delay is small and protects the controller when it
+is not. An earlier real-system MPC run gave RMS 0.168 m; it could not be reproduced with either version (most likely a
+second controller process was still running), so it was discarded.
 
 ---
 
 ## 11. Critical comparison
 
 **Accuracy (Table A, equal speed).** MPC is the most accurate: its mean CTE is about half of Pure Pursuit's and its RMS
-is 27% lower. Lateral PID is far behind, with an RMS seven times larger than MPC's. The maximum CTE of Pure Pursuit, MPPI
+is 29% lower. Lateral PID is far behind, with an RMS more than seven times larger than MPC's. The maximum CTE of Pure Pursuit, MPPI
 and MPC is similar (0.35–0.39 m), which suggests one demanding section of the track that all preview controllers meet
 the same way.
 
 **Lap time.** Pure Pursuit is the fastest at equal target speed because the longitudinal PID holds exactly 4.00 m/s.
 MPC trades speed for accuracy: speed tracking is only one term of its cost, so in corners it gives up some speed
-(mean 3.74 m/s) to reduce lateral error. With the curvature profiler (Table B), Pure Pursuit completes a lap in 72.3 s
+(mean 3.67 m/s) to reduce lateral error. With the curvature profiler (Table B), Pure Pursuit completes a lap in 72.3 s
 while remaining accurate.
 
 **Robustness to speed.** Pure Pursuit stays accurate from 4 to 7.5 m/s (RMS 0.066 → 0.086 m). Lateral PID degrades
 sharply (RMS 0.359 → 0.727 m, max 2.26 → 4.40 m) and its error grows from lap to lap at high speed: with no preview it
 reacts late in corners and swings wide.
 
-**Robustness to latency.** MPC is the most sensitive to timing. Without delay compensation it was worse than Pure Pursuit
-(Table C); with a one-step prediction it became the best. A model-based planner is only as good as the state it starts from.
+**Robustness to latency.** MPC plans from the state it is given, so it is the most sensitive to timing in principle. In an
+offline test with a forced 0.1 s delay its RMS error rose to 0.200 m, and predicting one step ahead brought it back to 0.046 m
+(Table C). On the real system the measured delay effect was negligible (0.048 vs 0.047 m), so the compensation acts as a
+safeguard rather than a fix. Pure Pursuit and Lateral PID have no plan to go stale and degrade more gently.
 
 **Computation.** The Lateral PID and Pure Pursuit control laws are a few arithmetic operations each (the nearest-waypoint search
 around them is shared by all controllers). MPC solves a 20-variable constrained optimisation every step (≈ 12–20 ms in Python); this is why it runs at a fixed 4 m/s here. At 6 m/s, offline tests showed lower accuracy and
@@ -369,7 +380,7 @@ speed. MPC has seven weights plus horizon, but they have physical meaning (what 
 | Uses a vehicle model | no | geometry only | yes (full dynamics) |
 | Handles actuator limits | clipping only | clipping only | as optimisation constraints |
 | Computational cost | tiny | tiny | high |
-| Sensitivity to delay | low | low | high (fixed by compensation) |
+| Sensitivity to delay | low | low | high in principle (guarded by compensation) |
 | Best use | simple low-speed tracking | fast, robust tracking | most accurate tracking |
 
 ---
@@ -398,8 +409,8 @@ equations as the plant and chooses the steering *sequence* that keeps the predic
 4. **It balances objectives explicitly.** Tracking error, heading error, speed, steering effort and steering rate are traded
    off in one cost, and the $(\delta_k - \delta_{k-1})^2$ term keeps the steering smooth.
 
-**The trade-off.** MPC's advantage depends on the model and the state being right. With a 0.1 s delay it was worse than Pure
-Pursuit until the delay was added to the model (Table C). And its accuracy costs computation: orders of magnitude more
+**The trade-off.** MPC's advantage depends on the model and the state being right. With a forced 0.1 s delay (offline) its
+error quadrupled until the delay was added to the model (Table C). And its accuracy costs computation: orders of magnitude more
 than the Pure Pursuit control law.
 
 ---
@@ -501,8 +512,8 @@ be compared directly.
 5. Weight the samples with the path-integral rule $w_k = \exp(-(S_k - S_{min})/\lambda)$, normalise, and set $\mathbf{U} \leftarrow \sum_k w_k \mathbf{V}_k$ ($\lambda = 3$).
 6. Apply the first step (with the same one-step delay compensation as the MPC).
 
-**Live result (Table A):** RMS CTE 0.054 m: 18% better than Pure Pursuit and 13% behind MPC. MPPI held speed better
-than MPC (mean 3.90 vs 3.74 m/s), and its laps varied slightly more because of the random sampling (visible as small
+**Live result (Table A):** RMS CTE 0.054 m: 18% better than Pure Pursuit and 15% behind MPC. MPPI held speed better
+than MPC (mean 3.90 vs 3.67 m/s), and its laps varied slightly more because of the random sampling (visible as small
 CTE ripples in `docs/rqt_plot.png`).
 
 **Compute vs quality (offline, 4 m/s, with 0.1 s delay):**
